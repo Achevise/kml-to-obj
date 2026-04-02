@@ -67,24 +67,26 @@ kml2obj INPUT_KML --inspect-kml
 - `INPUT_KML`: ruta del KML de entrada.
 - `OUTPUT_PATH`: ruta base de salida `.obj`.
 - `--material-mode {per-shape,source,shared}`:
+  - Default: `source`.
   - `per-shape`: material por shape.
-  - `source`: agrupa material según estilo original del KML (por defecto).
+  - `source`: agrupa material según estilo original del KML.
   - `shared`: un único material para todo el archivo.
-- `--partition-level all|N`: `all` un solo fichero, `N` un fichero por rama de jerarquía a ese nivel.
-- `--point-radius FLOAT`: radio (m) para `Point`.
-- `--line-width FLOAT`: grosor (m) para `LineString`.
-- `--polygon-height FLOAT`: extrusión (m) para `Polygon`.
+- `--partition-level all|N`: `all` un solo fichero, `N` un fichero por rama de jerarquía a ese nivel. Default: `all`.
+- `--point-radius FLOAT`: radio (m) para `Point`. Default: `1.0`.
+- `--line-width FLOAT`: grosor (m) para `LineString`. Default: `0.2`.
+- `--polygon-height FLOAT`: extrusión (m) para `Polygon`. Default: `0.0`.
 - `--polygon-outline-width FLOAT`: grosor (m) del contorno de anillos de `Polygon` (`0` desactiva).
+  - Default: `0.0`.
   - El outline se exporta como objeto independiente con sufijo `_Outline`.
 - `--up-axis {x,y,z}`: eje vertical global. Por defecto: `z`.
-- `--scale FLOAT`: escala global (default `1.0`).
-- `--scale-x FLOAT`: escala adicional del eje X (default `1.0`).
-- `--scale-y FLOAT`: escala adicional del eje Y (default `1.0`).
-- `--scale-z FLOAT`: escala adicional del eje Z (default `1.0`).
-- `--polygon-front {up,down,keep}`: dirección de frente para polígonos no extruidos.
-- `--decimate-tolerance FLOAT`: simplificación geométrica en metros (`0` desactiva).
-- `--flip-winding`: invierte winding de triángulos.
-- `--inspect-kml`: imprime informe del KML y termina.
+- `--scale FLOAT`: escala global. Default: `1.0`.
+- `--scale-x FLOAT`: escala adicional del eje X. Default: `1.0`.
+- `--scale-y FLOAT`: escala adicional del eje Y. Default: `1.0`.
+- `--scale-z FLOAT`: escala adicional del eje Z. Default: `1.0`.
+- `--polygon-front {up,down,keep}`: dirección de frente para polígonos no extruidos. Default: `up`.
+- `--decimate-tolerance FLOAT`: simplificación geométrica en metros (`0` desactiva). Default: `0.0`.
+- `--flip-winding`: invierte winding de triángulos. Default: desactivado.
+- `--inspect-kml`: imprime informe del KML y termina. Default: desactivado.
 
 ## Tests
 
