@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Style id="polyBlue">
+      <PolyStyle>
+        <color>ccff0000</color>
+      </PolyStyle>
+    </Style>
+    <Style id="lineGreen">
+      <LineStyle>
+        <color>ff00ff00</color>
+      </LineStyle>
+    </Style>
+
+    <Placemark>
+      <name>SamplePoint</name>
+      <Point>
+        <coordinates>-3.7038,40.4168,15</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>SampleLine</name>
+      <styleUrl>#lineGreen</styleUrl>
+      <LineString>
+        <coordinates>
+          -3.7040,40.4167,0
+          -3.7035,40.4170,0
+          -3.7030,40.4173,0
+        </coordinates>
+      </LineString>
+    </Placemark>
+
+    <Placemark>
+      <name>SamplePolygon</name>
+      <styleUrl>#polyBlue</styleUrl>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -3.7042,40.4165,0
+              -3.7032,40.4165,0
+              -3.7032,40.4172,0
+              -3.7042,40.4172,0
+              -3.7042,40.4165,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

@@ -1,0 +1,13 @@
+# OS / editor
+.DS_Store
+__pycache__/
+*.pyc
+
+# Build/output artifacts
+out/
+
+# Local FBX SDK binaries/packages (too large for regular git)
+fbx202039_fbxsdk_clang_mac.pkg.tar
+tools/fbxsdk/fbx202039_fbxsdk_clang_macos.pkg
+tools/fbxsdk/pkg_expanded/
+tools/fbxsdk/bin/

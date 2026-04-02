@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>EscenaDemo</name>
+
+    <Placemark>
+      <name>Cubo_1</name>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -3.7000,40.4000,0
+              -3.6990,40.4000,0
+              -3.6990,40.4010,0
+              -3.7000,40.4010,0
+              -3.7000,40.4000,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+
+    <Placemark>
+      <name>Cubo_2</name>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -3.6985,40.4000,0
+              -3.6975,40.4000,0
+              -3.6975,40.4010,0
+              -3.6985,40.4010,0
+              -3.6985,40.4000,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+
+    <Placemark>
+      <name>Cubo_3</name>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -3.7000,40.4015,0
+              -3.6990,40.4015,0
+              -3.6990,40.4025,0
+              -3.7000,40.4025,0
+              -3.7000,40.4015,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+
+    <Placemark>
+      <name>Cubo_4</name>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -3.6985,40.4015,0
+              -3.6975,40.4015,0
+              -3.6975,40.4025,0
+              -3.6985,40.4025,0
+              -3.6985,40.4015,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+
+  </Document>
+</kml>
