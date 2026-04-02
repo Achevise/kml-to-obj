@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from kml_to_obj.kml_parser import parse_kml
-from kml_to_obj.mesh_builder import MeshData, linestring_to_ribbon_mesh, polygon_to_mesh
+from kml_to_obj.mesh_builder import MeshData, linestring_to_ribbon_mesh, polygon_outline_mesh_axis, polygon_to_mesh
 
 
 def _tri_area_xy(a, b, c):
@@ -152,6 +152,19 @@ class EdgeCaseSuite(unittest.TestCase):
         mesh = linestring_to_ribbon_mesh(coords, width=1.0)
         self.assertEqual(6, len(mesh.vertices))
         self.assertEqual(4, len(mesh.triangles))
+
+    def test_polygon_outline_closed_ring_has_no_duplicated_seam_vertex(self):
+        ring = [
+            (0.0, 0.0, 0.0),
+            (10.0, 0.0, 0.0),
+            (10.0, 10.0, 0.0),
+            (0.0, 10.0, 0.0),
+            (0.0, 0.0, 0.0),
+        ]
+        mesh = polygon_outline_mesh_axis([ring], width=1.0, up_axis="z")
+        # 4 ring corners -> 8 ribbon vertices (left/right per corner), closed cyclic strip.
+        self.assertEqual(8, len(mesh.vertices))
+        self.assertEqual(8, len(mesh.triangles))
 
 if __name__ == "__main__":
     unittest.main()

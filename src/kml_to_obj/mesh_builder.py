@@ -146,17 +146,80 @@ def polygon_outline_mesh(rings: Sequence[Sequence[Vec3]], width: float) -> MeshD
 def polygon_outline_mesh_axis(rings: Sequence[Sequence[Vec3]], width: float, up_axis: str) -> MeshData:
     if width <= 0.0:
         return MeshData(vertices=[], triangles=[])
+    axis = up_axis.lower()
+    if axis == "x":
+        h1, h2 = 1, 2
+    elif axis == "y":
+        h1, h2 = 0, 2
+    elif axis == "z":
+        h1, h2 = 0, 1
+    else:
+        raise ValueError(f"Unsupported up axis: {up_axis}")
+
+    def _ring_outline_closed(ring: Sequence[Vec3]) -> MeshData:
+        pts = list(ring)
+        if len(pts) < 3:
+            return MeshData(vertices=[], triangles=[])
+        if pts[0] == pts[-1]:
+            pts = pts[:-1]
+        n = len(pts)
+        if n < 3:
+            return MeshData(vertices=[], triangles=[])
+
+        half = width * 0.5
+        verts: List[Vec3] = []
+        tris: List[Tri] = []
+
+        for i in range(n):
+            prev = pts[(i - 1) % n]
+            curr = pts[i]
+            nxt = pts[(i + 1) % n]
+
+            t_prev = _normalize(_sub(curr, prev))
+            t_next = _normalize(_sub(nxt, curr))
+            tangent = (t_prev[0] + t_next[0], t_prev[1] + t_next[1], t_prev[2] + t_next[2])
+
+            t2 = (tangent[h1], tangent[h2])
+            tlen = math.hypot(t2[0], t2[1])
+            if tlen <= 1e-15:
+                fallback = _sub(nxt, prev)
+                t2 = (fallback[h1], fallback[h2])
+                tlen = math.hypot(t2[0], t2[1])
+            if tlen <= 1e-15:
+                fallback = _sub(nxt, curr)
+                t2 = (fallback[h1], fallback[h2])
+                tlen = math.hypot(t2[0], t2[1])
+            if tlen <= 1e-15:
+                t2 = (1.0, 0.0)
+                tlen = 1.0
+
+            tx, ty = (t2[0] / tlen, t2[1] / tlen)
+            nx, ny = (-ty, tx)
+
+            left = [curr[0], curr[1], curr[2]]
+            right = [curr[0], curr[1], curr[2]]
+            left[h1] += nx * half
+            left[h2] += ny * half
+            right[h1] -= nx * half
+            right[h2] -= ny * half
+            verts.extend([(left[0], left[1], left[2]), (right[0], right[1], right[2])])
+
+        for i in range(n):
+            j = (i + 1) % n
+            a = i * 2
+            b = a + 1
+            c = j * 2
+            d = c + 1
+            tris.append((a, c, b))
+            tris.append((b, c, d))
+
+        return MeshData(vertices=verts, triangles=tris)
+
     parts: List[MeshData] = []
     for ring in rings:
-        r = list(ring)
-        if len(r) < 3:
-            continue
-        if r[0] == r[-1]:
-            r = r[:-1]
-        if len(r) < 3:
-            continue
-        closed = r + [r[0]]
-        parts.append(linestring_to_ribbon_mesh_axis(closed, width, up_axis=up_axis))
+        part = _ring_outline_closed(ring)
+        if part.vertices and part.triangles:
+            parts.append(part)
     return merge_meshes(parts)
 
 

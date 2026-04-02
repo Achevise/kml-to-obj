@@ -21,6 +21,10 @@ from .mesh_builder import (
 )
 from .obj_writer import ObjMeshObject, write_obj_with_mtl
 
+OUTLINE_AUTO = "auto"
+OUTLINE_AUTO_RATIO = 0.05
+OUTLINE_PERCENT = "percent"
+
 
 def _sub3(a, b):
     return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
@@ -323,6 +327,59 @@ def _inspect_kml(path: str) -> str:
     return "\n".join(lines)
 
 
+def _parse_outline_width_arg(value: str):
+    raw = (value or "").strip().lower()
+    if raw == OUTLINE_AUTO:
+        return OUTLINE_AUTO
+    if raw.endswith("%"):
+        number = raw[:-1].strip()
+        try:
+            pct = float(number)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(
+                "polygon outline width percent must be like '5%'"
+            ) from exc
+        return (OUTLINE_PERCENT, pct / 100.0)
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "polygon outline width must be 'auto', a float (e.g. 1), or a percent (e.g. 5%)"
+        ) from exc
+
+
+def _polygon_bbox_size(rings, up_axis: str) -> float:
+    h1, h2 = _horizontal_axes(up_axis)
+    points = []
+    for ring in rings:
+        points.extend(ring)
+    if not points:
+        return 0.0
+    min1 = min(p[h1] for p in points)
+    max1 = max(p[h1] for p in points)
+    min2 = min(p[h2] for p in points)
+    max2 = max(p[h2] for p in points)
+    size = max(max1 - min1, max2 - min2)
+    if size <= 1e-12:
+        min0 = min(p[0] for p in points)
+        max0 = max(p[0] for p in points)
+        min1a = min(p[1] for p in points)
+        max1a = max(p[1] for p in points)
+        min2a = min(p[2] for p in points)
+        max2a = max(p[2] for p in points)
+        size = max(max0 - min0, max1a - min1a, max2a - min2a)
+    return max(0.0, size)
+
+
+def _resolve_outline_width(spec, rings, up_axis: str) -> float:
+    bbox_size = _polygon_bbox_size(rings, up_axis)
+    if spec == OUTLINE_AUTO:
+        return bbox_size * OUTLINE_AUTO_RATIO
+    if isinstance(spec, tuple) and len(spec) == 2 and spec[0] == OUTLINE_PERCENT:
+        return bbox_size * spec[1]
+    return float(spec)
+
+
 def _write_geoid_map_py(scene, output_path: str) -> str:
     out_base, _ = os.path.splitext(output_path)
     map_path = f"{out_base}.py"
@@ -353,14 +410,15 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument("--polygon-height", type=float, default=0.0, help="Extrusion height for polygons in meters")
     parser.add_argument(
         "--polygon-outline-width",
-        type=float,
-        default=0.0,
-        help="Outline thickness in meters for polygon rings (0 disables)",
+        type=_parse_outline_width_arg,
+        default=OUTLINE_AUTO,
+        help="Outline thickness mode for polygon rings: auto (default), float (e.g. 1), or percent (e.g. 5%%)",
     )
     parser.add_argument(
-        "--polygon-outline-only",
-        action="store_true",
-        help="Export polygons only as outline geometry (no filled polygon mesh)",
+        "--polygon-render-mode",
+        choices=["polygon", "outline", "polygon+outline"],
+        default="polygon",
+        help="Render mode for Polygon shapes",
     )
     parser.add_argument(
         "--polygon-front",
@@ -413,12 +471,22 @@ def main(argv: List[str] | None = None) -> int:
     if args.decimate_tolerance < 0.0:
         print("Error: decimate tolerance must be >= 0")
         return 1
-    if args.polygon_outline_width < 0.0:
-        print("Error: polygon outline width must be >= 0")
-        return 1
-    if args.polygon_outline_only and args.polygon_outline_width <= 0.0:
-        print("Error: polygon outline only mode requires --polygon-outline-width > 0")
-        return 1
+    if args.polygon_outline_width != OUTLINE_AUTO:
+        if isinstance(args.polygon_outline_width, tuple):
+            ratio = args.polygon_outline_width[1]
+            if ratio < 0.0:
+                print("Error: polygon outline width percent must be >= 0")
+                return 1
+            if args.polygon_render_mode != "polygon" and ratio <= 0.0:
+                print("Error: polygon outline modes require --polygon-outline-width > 0, >0%, or 'auto'")
+                return 1
+        else:
+            if args.polygon_outline_width < 0.0:
+                print("Error: polygon outline width must be >= 0")
+                return 1
+            if args.polygon_render_mode != "polygon" and args.polygon_outline_width <= 0.0:
+                print("Error: polygon outline modes require --polygon-outline-width > 0, >0%, or 'auto'")
+                return 1
     if args.scale <= 0.0 or args.scale_x <= 0.0 or args.scale_y <= 0.0 or args.scale_z <= 0.0:
         print("Error: scale values must be > 0")
         return 1
@@ -468,7 +536,7 @@ def main(argv: List[str] | None = None) -> int:
             polygon_height=args.polygon_height,
             up_axis=args.up_axis,
         )
-        if item["geometry_type"] == "Polygon" and args.polygon_outline_only:
+        if item["geometry_type"] == "Polygon" and args.polygon_render_mode == "outline":
             mesh = type(mesh)(vertices=[], triangles=[])
         if item["geometry_type"] == "Polygon" and args.polygon_height <= 0.0 and args.polygon_front != "keep":
             mesh = _orient_polygon_front(mesh, up=(args.polygon_front == "up"), up_axis=args.up_axis)
@@ -488,8 +556,9 @@ def main(argv: List[str] | None = None) -> int:
             )
             generated_any = True
 
-        if item["geometry_type"] == "Polygon" and args.polygon_outline_width > 0.0:
-            outline = polygon_outline_mesh_axis(item["coordinates"], args.polygon_outline_width, up_axis=args.up_axis)
+        if item["geometry_type"] == "Polygon" and args.polygon_render_mode in ("outline", "polygon+outline"):
+            outline_width = _resolve_outline_width(args.polygon_outline_width, item["coordinates"], up_axis=args.up_axis)
+            outline = polygon_outline_mesh_axis(item["coordinates"], outline_width, up_axis=args.up_axis)
             if args.flip_winding:
                 outline = flip_mesh_winding(outline)
             if outline.vertices and outline.triangles:

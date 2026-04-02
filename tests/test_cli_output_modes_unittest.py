@@ -179,7 +179,16 @@ class CliOutputModesSuite(unittest.TestCase):
             self.assertEqual(0, rc_no)
 
             obj_ol = Path(tmpdir) / "poly_ol.obj"
-            rc_ol = cli_main([str(kml_path), str(obj_ol), "--polygon-outline-width", "5.0"])
+            rc_ol = cli_main(
+                [
+                    str(kml_path),
+                    str(obj_ol),
+                    "--polygon-outline-width",
+                    "5.0",
+                    "--polygon-render-mode",
+                    "polygon+outline",
+                ]
+            )
             self.assertEqual(0, rc_ol)
 
             v_no = sum(1 for ln in obj_no.read_text(encoding="utf-8").splitlines() if ln.startswith("v "))
@@ -189,7 +198,7 @@ class CliOutputModesSuite(unittest.TestCase):
             self.assertIn("o P", ol_text)
             self.assertIn("o P_Outline", ol_text)
 
-    def test_polygon_outline_only_skips_polygon_fill(self):
+    def test_polygon_render_mode_outline_skips_polygon_fill(self):
         poly_kml = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
@@ -206,11 +215,84 @@ class CliOutputModesSuite(unittest.TestCase):
             kml_path.write_text(poly_kml, encoding="utf-8")
 
             obj_path = Path(tmpdir) / "poly_outline_only.obj"
-            rc = cli_main([str(kml_path), str(obj_path), "--polygon-outline-width", "5.0", "--polygon-outline-only"])
+            rc = cli_main(
+                [
+                    str(kml_path),
+                    str(obj_path),
+                    "--polygon-outline-width",
+                    "5.0",
+                    "--polygon-render-mode",
+                    "outline",
+                ]
+            )
             self.assertEqual(0, rc)
             text = obj_path.read_text(encoding="utf-8")
             self.assertNotIn("o P\n", text)
             self.assertIn("o P_Outline", text)
+
+    def test_polygon_outline_width_auto_uses_bbox_ratio(self):
+        poly_kml = """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>P</name>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>
+        -3.0,40.0,0 -2.0,40.0,0 -2.0,41.0,0 -3.0,41.0,0 -3.0,40.0,0
+      </coordinates></LinearRing></outerBoundaryIs></Polygon>
+    </Placemark>
+  </Document>
+</kml>"""
+        with tempfile.TemporaryDirectory(prefix="kml_cli_outline_auto_") as tmpdir:
+            kml_path = Path(tmpdir) / "poly.kml"
+            kml_path.write_text(poly_kml, encoding="utf-8")
+            obj_path = Path(tmpdir) / "poly_outline_auto.obj"
+            rc = cli_main(
+                [
+                    str(kml_path),
+                    str(obj_path),
+                    "--polygon-render-mode",
+                    "outline",
+                    "--polygon-outline-width",
+                    "auto",
+                ]
+            )
+            self.assertEqual(0, rc)
+            text = obj_path.read_text(encoding="utf-8")
+            self.assertIn("o P_Outline", text)
+            self.assertNotIn("o P\n", text)
+            self.assertGreater(sum(1 for ln in text.splitlines() if ln.startswith("f ")), 0)
+
+    def test_polygon_outline_width_percent_uses_bbox_ratio(self):
+        poly_kml = """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>P</name>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>
+        -3.0,40.0,0 -2.0,40.0,0 -2.0,41.0,0 -3.0,41.0,0 -3.0,40.0,0
+      </coordinates></LinearRing></outerBoundaryIs></Polygon>
+    </Placemark>
+  </Document>
+</kml>"""
+        with tempfile.TemporaryDirectory(prefix="kml_cli_outline_pct_") as tmpdir:
+            kml_path = Path(tmpdir) / "poly.kml"
+            kml_path.write_text(poly_kml, encoding="utf-8")
+            obj_path = Path(tmpdir) / "poly_outline_pct.obj"
+            rc = cli_main(
+                [
+                    str(kml_path),
+                    str(obj_path),
+                    "--polygon-render-mode",
+                    "outline",
+                    "--polygon-outline-width",
+                    "5%",
+                ]
+            )
+            self.assertEqual(0, rc)
+            text = obj_path.read_text(encoding="utf-8")
+            self.assertIn("o P_Outline", text)
+            self.assertNotIn("o P\n", text)
+            self.assertGreater(sum(1 for ln in text.splitlines() if ln.startswith("f ")), 0)
 
     def test_polygon_front_normalization_up_and_down(self):
         poly_kml = """<?xml version="1.0" encoding="UTF-8"?>

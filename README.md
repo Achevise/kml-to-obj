@@ -75,8 +75,14 @@ kml2obj INPUT_KML --inspect-kml
 - `--point-radius FLOAT`: radio (m) para `Point`. Default: `1.0`.
 - `--line-width FLOAT`: grosor (m) para `LineString`. Default: `0.2`.
 - `--polygon-height FLOAT`: extrusión (m) para `Polygon`. Default: `0.0`.
-- `--polygon-outline-width FLOAT`: grosor (m) del contorno de anillos de `Polygon` (`0` desactiva).
-  - Default: `0.0`.
+- `--polygon-render-mode {polygon,outline,polygon+outline}`: modo de render para shapes `Polygon`. Default: `polygon`.
+- `--polygon-outline-width auto|FLOAT|PERCENT%`: modo de tamaño del contorno de anillos de `Polygon`.
+  - Default: `auto`.
+  - `auto`: calcula el grosor como el `5%` del tamaño del bounding box del shape.
+  - `FLOAT` (ej. `1`): grosor fijo en metros.
+  - `PERCENT%` (ej. `5%`): porcentaje del tamaño del bounding box del shape.
+  - Solo se usa si `--polygon-render-mode` es `outline` o `polygon+outline`.
+  - Debe ser `> 0`, `>0%` o `auto` si `--polygon-render-mode` es `outline` o `polygon+outline`.
   - El outline se exporta como objeto independiente con sufijo `_Outline`.
 - `--up-axis {x,y,z}`: eje vertical global. Por defecto: `z`.
 - `--scale FLOAT`: escala global. Default: `1.0`.
