@@ -62,8 +62,22 @@ def point_to_octahedron_mesh(center: Vec3, radius: float) -> MeshData:
 
 
 def linestring_to_ribbon_mesh(coords: Sequence[Vec3], width: float) -> MeshData:
+    return linestring_to_ribbon_mesh_axis(coords, width, up_axis="z")
+
+
+def linestring_to_ribbon_mesh_axis(coords: Sequence[Vec3], width: float, up_axis: str) -> MeshData:
     if len(coords) < 2:
         return MeshData(vertices=[], triangles=[])
+
+    axis = up_axis.lower()
+    if axis == "x":
+        h1, h2 = 1, 2
+    elif axis == "y":
+        h1, h2 = 0, 2
+    elif axis == "z":
+        h1, h2 = 0, 1
+    else:
+        raise ValueError(f"Unsupported up axis: {up_axis}")
 
     half = width * 0.5
     left_right: List[Tuple[Vec3, Vec3]] = []
@@ -78,12 +92,22 @@ def linestring_to_ribbon_mesh(coords: Sequence[Vec3], width: float) -> MeshData:
             t2 = _normalize(_sub(coords[i + 1], coords[i]))
             tangent = (t1[0] + t2[0], t1[1] + t2[1], t1[2] + t2[2])
 
-        txy = _normalize((tangent[0], tangent[1], 0.0))
-        if _length(txy) == 0.0:
-            txy = (1.0, 0.0, 0.0)
-        normal = (-txy[1], txy[0], 0.0)
-        l = (p[0] + normal[0] * half, p[1] + normal[1] * half, p[2])
-        r = (p[0] - normal[0] * half, p[1] - normal[1] * half, p[2])
+        t2 = (tangent[h1], tangent[h2])
+        tlen = math.hypot(t2[0], t2[1])
+        if tlen <= 1e-15:
+            t2 = (1.0, 0.0)
+            tlen = 1.0
+        tx, ty = (t2[0] / tlen, t2[1] / tlen)
+        nx, ny = (-ty, tx)
+
+        l = [p[0], p[1], p[2]]
+        r = [p[0], p[1], p[2]]
+        l[h1] += nx * half
+        l[h2] += ny * half
+        r[h1] -= nx * half
+        r[h2] -= ny * half
+        l = (l[0], l[1], l[2])
+        r = (r[0], r[1], r[2])
         left_right.append((l, r))
 
     verts: List[Vec3] = []
@@ -116,6 +140,10 @@ def merge_meshes(meshes: Sequence[MeshData]) -> MeshData:
 
 
 def polygon_outline_mesh(rings: Sequence[Sequence[Vec3]], width: float) -> MeshData:
+    return polygon_outline_mesh_axis(rings, width, up_axis="z")
+
+
+def polygon_outline_mesh_axis(rings: Sequence[Sequence[Vec3]], width: float, up_axis: str) -> MeshData:
     if width <= 0.0:
         return MeshData(vertices=[], triangles=[])
     parts: List[MeshData] = []
@@ -128,7 +156,7 @@ def polygon_outline_mesh(rings: Sequence[Sequence[Vec3]], width: float) -> MeshD
         if len(r) < 3:
             continue
         closed = r + [r[0]]
-        parts.append(linestring_to_ribbon_mesh(closed, width))
+        parts.append(linestring_to_ribbon_mesh_axis(closed, width, up_axis=up_axis))
     return merge_meshes(parts)
 
 
@@ -394,12 +422,30 @@ def polygon_to_mesh(rings: Sequence[Sequence[Vec3]]) -> MeshData:
 
 
 def extrude_mesh_y(mesh: MeshData, height: float) -> MeshData:
+    return extrude_mesh_axis(mesh, height, up_axis="y")
+
+
+def extrude_mesh_axis(mesh: MeshData, height: float, up_axis: str) -> MeshData:
     if height <= 0.0 or not mesh.vertices or not mesh.triangles:
         return mesh
 
+    axis = up_axis.lower()
+    if axis == "x":
+        up_idx = 0
+    elif axis == "y":
+        up_idx = 1
+    elif axis == "z":
+        up_idx = 2
+    else:
+        raise ValueError(f"Unsupported up axis: {up_axis}")
+
     bottom = list(mesh.vertices)
     offset = len(bottom)
-    top = [(x, y + height, z) for (x, y, z) in bottom]
+    top = []
+    for v in bottom:
+        vv = [v[0], v[1], v[2]]
+        vv[up_idx] += height
+        top.append((vv[0], vv[1], vv[2]))
 
     tris: List[Tri] = []
     # Bottom cap (original orientation).

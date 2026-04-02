@@ -76,6 +76,11 @@ kml2obj INPUT_KML --inspect-kml
 - `--polygon-height FLOAT`: extrusión (m) para `Polygon`.
 - `--polygon-outline-width FLOAT`: grosor (m) del contorno de anillos de `Polygon` (`0` desactiva).
   - El outline se exporta como objeto independiente con sufijo `_Outline`.
+- `--up-axis {x,y,z}`: eje vertical global. Por defecto: `z`.
+- `--scale FLOAT`: escala global (default `1.0`).
+- `--scale-x FLOAT`: escala adicional del eje X (default `1.0`).
+- `--scale-y FLOAT`: escala adicional del eje Y (default `1.0`).
+- `--scale-z FLOAT`: escala adicional del eje Z (default `1.0`).
 - `--polygon-front {up,down,keep}`: dirección de frente para polígonos no extruidos.
 - `--decimate-tolerance FLOAT`: simplificación geométrica en metros (`0` desactiva).
 - `--flip-winding`: invierte winding de triángulos.

@@ -189,6 +189,29 @@ class CliOutputModesSuite(unittest.TestCase):
             self.assertIn("o P", ol_text)
             self.assertIn("o P_Outline", ol_text)
 
+    def test_polygon_outline_only_skips_polygon_fill(self):
+        poly_kml = """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>P</name>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>
+        -3.0,40.0,0 -2.9,40.0,0 -2.9,40.1,0 -3.0,40.1,0 -3.0,40.0,0
+      </coordinates></LinearRing></outerBoundaryIs></Polygon>
+    </Placemark>
+  </Document>
+</kml>"""
+        with tempfile.TemporaryDirectory(prefix="kml_cli_outline_only_") as tmpdir:
+            kml_path = Path(tmpdir) / "poly.kml"
+            kml_path.write_text(poly_kml, encoding="utf-8")
+
+            obj_path = Path(tmpdir) / "poly_outline_only.obj"
+            rc = cli_main([str(kml_path), str(obj_path), "--polygon-outline-width", "5.0", "--polygon-outline-only"])
+            self.assertEqual(0, rc)
+            text = obj_path.read_text(encoding="utf-8")
+            self.assertNotIn("o P\n", text)
+            self.assertIn("o P_Outline", text)
+
     def test_polygon_front_normalization_up_and_down(self):
         poly_kml = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
@@ -215,23 +238,23 @@ class CliOutputModesSuite(unittest.TestCase):
             rc_up = cli_main([str(kml_path), str(up_obj), "--polygon-front", "up"])
             self.assertEqual(0, rc_up)
             up_normals = [
-                float(ln.split()[2])
+                float(ln.split()[3])
                 for ln in up_obj.read_text(encoding="utf-8").splitlines()
                 if ln.startswith("vn ")
             ]
             self.assertTrue(up_normals)
-            self.assertTrue(all(ny > 0.0 for ny in up_normals))
+            self.assertTrue(all(nz > 0.0 for nz in up_normals))
 
             down_obj = Path(tmpdir) / "down.obj"
             rc_down = cli_main([str(kml_path), str(down_obj), "--polygon-front", "down"])
             self.assertEqual(0, rc_down)
             down_normals = [
-                float(ln.split()[2])
+                float(ln.split()[3])
                 for ln in down_obj.read_text(encoding="utf-8").splitlines()
                 if ln.startswith("vn ")
             ]
             self.assertTrue(down_normals)
-            self.assertTrue(all(ny < 0.0 for ny in down_normals))
+            self.assertTrue(all(nz < 0.0 for nz in down_normals))
 
     def test_inspect_kml_outputs_source_summary(self):
         buf = StringIO()
@@ -272,6 +295,82 @@ class CliOutputModesSuite(unittest.TestCase):
             text = out_py.read_text(encoding="utf-8")
             self.assertIn('GEOID_TO_OBJECT = {', text)
             self.assertIn('"08001": "US_08001_Adams"', text)
+
+    def test_up_axis_controls_altitude_axis(self):
+        point_kml = """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>P</name>
+      <Point><coordinates>-3.0,40.0,10</coordinates></Point>
+    </Placemark>
+  </Document>
+</kml>"""
+        with tempfile.TemporaryDirectory(prefix="kml_cli_upaxis_") as tmpdir:
+            kml_path = Path(tmpdir) / "p.kml"
+            kml_path.write_text(point_kml, encoding="utf-8")
+
+            def centroid_for(args):
+                obj_path = Path(tmpdir) / f"p_{'_'.join(args) if args else 'z'}.obj"
+                rc = cli_main([str(kml_path), str(obj_path), *args])
+                self.assertEqual(0, rc)
+                verts = []
+                for ln in obj_path.read_text(encoding="utf-8").splitlines():
+                    if ln.startswith("v "):
+                        _v, x, y, z = ln.split()
+                        verts.append((float(x), float(y), float(z)))
+                self.assertTrue(verts)
+                n = len(verts)
+                return (
+                    sum(v[0] for v in verts) / n,
+                    sum(v[1] for v in verts) / n,
+                    sum(v[2] for v in verts) / n,
+                )
+
+            cx, cy, cz = centroid_for([])
+            self.assertAlmostEqual(10.0, cz, places=6)  # default z-up
+            self.assertAlmostEqual(0.0, cy, places=6)
+
+            cx, cy, cz = centroid_for(["--up-axis", "y"])
+            self.assertAlmostEqual(10.0, cy, places=6)
+            self.assertAlmostEqual(0.0, cz, places=6)
+
+            cx, cy, cz = centroid_for(["--up-axis", "x"])
+            self.assertAlmostEqual(10.0, cx, places=6)
+
+    def test_scale_and_axis_scales_apply(self):
+        point_kml = """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>P</name>
+      <Point><coordinates>-3.0,40.0,10</coordinates></Point>
+    </Placemark>
+  </Document>
+</kml>"""
+        with tempfile.TemporaryDirectory(prefix="kml_cli_scale_") as tmpdir:
+            kml_path = Path(tmpdir) / "p.kml"
+            kml_path.write_text(point_kml, encoding="utf-8")
+
+            def centroid(args):
+                obj_path = Path(tmpdir) / f"s_{'_'.join(args) if args else 'base'}.obj"
+                rc = cli_main([str(kml_path), str(obj_path), *args])
+                self.assertEqual(0, rc)
+                verts = []
+                for ln in obj_path.read_text(encoding="utf-8").splitlines():
+                    if ln.startswith("v "):
+                        _v, x, y, z = ln.split()
+                        verts.append((float(x), float(y), float(z)))
+                n = len(verts)
+                return (sum(v[0] for v in verts) / n, sum(v[1] for v in verts) / n, sum(v[2] for v in verts) / n)
+
+            # default z-up + global scale
+            _, _, z = centroid(["--scale", "3"])
+            self.assertAlmostEqual(30.0, z, places=6)
+
+            # y-up + per-axis scale on Y
+            _, y, _ = centroid(["--up-axis", "y", "--scale-y", "0.5"])
+            self.assertAlmostEqual(5.0, y, places=6)
 
 
 if __name__ == "__main__":
